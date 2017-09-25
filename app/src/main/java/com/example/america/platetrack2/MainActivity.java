@@ -30,6 +30,8 @@ import java.util.StringTokenizer;
 
 public class MainActivity extends AppCompatActivity {
 
+    //This is a test for git. Please work
+
     //send_string_from and send_string_to are going to eventually be sent to the database,
     // the values are in the onDateSet(DatePicker view, int year, int month, int day) method
     static String send_string_from, send_string_to;
