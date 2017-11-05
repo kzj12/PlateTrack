@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -11,15 +12,21 @@ import com.google.android.gms.maps.model.LatLng;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.DriverManager;
+import java.sql.Statement;
+
 
 /**
  * Created by Matthew on 4/29/2017.
  */
 
 public class PlateTracker extends AsyncTask<Void, Void, String> {
-    static final String url = "jdbc:mysql://35.184.136.131:3306/PlateTrackDB";
-    static final String user = "root";
-    static final String pass = "CSC450@2pm";
+    static final String url = "jdbc:mysql://146.148.106.136/plateData";
+    static final String user = "platem8";
+    static final String pass = "PtDbP4S5";
+
 
     ProgressDialog mProgressDialog;
     Context context;
@@ -35,8 +42,7 @@ public class PlateTracker extends AsyncTask<Void, Void, String> {
     }
 
     protected void onPreExecute() {
-        mProgressDialog = ProgressDialog.show(context, "",
-                "Searching database, please wait...");
+       mProgressDialog = ProgressDialog.show(context, "", "Searching database, please wait...");
     }
 
     protected String doInBackground(Void... params) {
@@ -53,13 +59,13 @@ public class PlateTracker extends AsyncTask<Void, Void, String> {
 //                st.executeUpdate("DELETE FROM PlateTrackDB.user_plate WHERE user_id = " + userId + " AND plate_number = '" + this.plate + "';");
 //            }
 
-            java.sql.ResultSet rs = st.executeQuery("SELECT capture_date, capture_time, latitude, longitude FROM PlateTrackDB.plate_capture WHERE plate_number = '" + this.plate +
-                    "' AND capture_date BETWEEN STR_TO_DATE('" + start + "', '%m/%d/%Y') AND STR_TO_DATE('" + end + "', '%m/%d/%Y')" +
-                    " ORDER BY capture_time;");
+            java.sql.ResultSet rs = st.executeQuery("SELECT date, time, latitude, longitude FROM plateData.plateTrack WHERE plate = '" + this.plate +
+                    "' AND date BETWEEN STR_TO_DATE('" + start + "', '%m/%d/%Y') AND STR_TO_DATE('" + end + "', '%m/%d/%Y')" +
+                    " ORDER BY time;");
 
             dateLongLat = new ArrayList<>();
             while (rs.next()) {
-                dateLongLat.add(new PlateCapture(rs.getDate("capture_date"), rs.getTime("capture_time"), rs.getDouble("latitude"), rs.getDouble("longitude")));
+                dateLongLat.add(new PlateCapture(rs.getDate("date"), rs.getTime("time"), rs.getDouble("latitude"), rs.getDouble("longitude")));
             }
 
             rs.close();
@@ -117,7 +123,7 @@ public class PlateTracker extends AsyncTask<Void, Void, String> {
 
             ((MainActivity) context).showRouteList();
 
-            //context.startActivity(new Intent(context, MapsActivity.class));
+            context.startActivity(new Intent(context, MapsActivity.class));
         }
     }
 }

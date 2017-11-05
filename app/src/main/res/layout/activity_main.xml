@@ -42,6 +42,7 @@
             android:layout_height="match_parent"
             android:layout_toRightOf="@+id/pNumber"
             android:layout_weight="0.3"
+            android:id="@+id/dateFrom"
             />
         <TextView
             android:text="Select date to:"
@@ -50,6 +51,7 @@
             android:layout_height="match_parent"
             android:layout_toRightOf="@+id/pNumber"
             android:layout_weight="0.3"
+            android:id="@+id/dateTo"
             />
         </LinearLayout>
     <LinearLayout

@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.DatePicker;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.EventListener;
@@ -82,12 +83,14 @@ public class MainActivity extends AppCompatActivity {
                 EditText platebox = (EditText)findViewById(R.id.platebox);
                 String plate_number = platebox.getText().toString();
 
+
+
                 //here, send the dates and plate number to the database:
                 //plate_number, send_string_from, send_string_to will be sent.
 
                 try {
-                    new PlateTracker(MainActivity.this, plate_number, send_string_from, send_string_to).execute();
-                    //new PlateTracker(MainActivity.this, "VAANG0", "5/09/2017", "5/10/2017").execute();
+                    //new PlateTracker(MainActivity.this, plate_number, send_string_from, send_string_to).execute();
+                    new PlateTracker(MainActivity.this, "c4tm4n", "10/09/2017", "11/10/2017").execute();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

@@ -37,21 +37,50 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.media.Image;
+import android.media.ImageReader;
 
+import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageMetadata;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import android.net.Uri;
+import android.support.annotation.NonNull;
+import android.provider.MediaStore;
+import android.graphics.Bitmap;
+import java.io.ByteArrayOutputStream;
+import android.util.Base64;
+import android.graphics.BitmapFactory;
+import android.content.res.AssetManager;
+
+
 
 public class VideoCaptureActivity extends AppCompatActivity {
 
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int REQUEST_CLOCATION_PERMISSION_RESULT = 0;
     private static final int REQUEST_FLOCATION_PERMISSION_RESULT = 0;
+    static FirebaseAuth mAuth = FirebaseAuth.getInstance();
+    FirebaseStorage storage = FirebaseStorage.getInstance();
+    StorageReference storageReference = storage.getReferenceFromUrl("gs://platetrack2.appspot.com").child("test.jpeg");
 
-    //
 
     private TextureView mTextureView;
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
@@ -107,6 +136,24 @@ public class VideoCaptureActivity extends AppCompatActivity {
     private CaptureRequest.Builder mCaptureRequestBuilder;
     private LocationManager locationManager;
     private LocationListener listener;
+    private ImageReader mImageReader;
+    private File mFile;
+    private Uri file;
+    private int PICK_IMAGE_REQUEST = 1;
+    //private StorageReference storageRef;
+    private Bitmap bitmap;
+    /*private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
+            = new ImageReader.OnImageAvailableListener() {
+
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+            mBackgroundHandler.post(new prepImage(reader.acquireNextImage(), mFile, storageRef));
+
+
+        }
+
+    };*/
+
 
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -125,6 +172,8 @@ public class VideoCaptureActivity extends AppCompatActivity {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         t = (TextView) findViewById(R.id.txtCoord);
+        uploadImage();
+
 
         listener = new LocationListener() {
             @Override
@@ -132,7 +181,7 @@ public class VideoCaptureActivity extends AppCompatActivity {
                 long time = location.getTime();
                 Date date = new Date(time);
                 t.setText("");
-                t.append("Long:" + location.getLongitude() +"\n"+ "Lat:" + location.getLatitude() +"\n" + date);
+                t.append("Long:" + location.getLongitude() + "\n" + "Lat:" + location.getLatitude() + "\n" + date);
             }
 
             @Override
@@ -153,6 +202,8 @@ public class VideoCaptureActivity extends AppCompatActivity {
             }
         };
     }
+
+
 
     @Override
     protected void onResume() {
@@ -177,8 +228,11 @@ public class VideoCaptureActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(),
                         "Application will not run without camera and location services!", Toast.LENGTH_SHORT).show();
             }
+
         }
     }
+
+
 
     @Override
     protected void onPause() {
@@ -355,10 +409,168 @@ public class VideoCaptureActivity extends AppCompatActivity {
             return choices[0];
         }
     }
+
+    
+            /*Maybe use this method for frame feed???
+            FirebaseStorage storage=FirebaseStorage.getInstance();
+            StorageReference storageReference=storage.getReferenceFromUrl("gs://platetrack2.appspot.com/UpstreamFrames");
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+            byte[] data = outputStream.toByteArray();
+            UploadTask uploadTask = storageReference.putBytes(data);
+            uploadTask.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+            }
+             }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+            }
+            });*/
+
+            private void uploadImage() {
+
+                FirebaseUser user = mAuth.getCurrentUser();
+                //if (user != null) {
+                    //FirebaseStorage storage = FirebaseStorage.getInstance();
+                    //StorageReference storageReference = storage.getReferenceFromUrl("gs://platetrack2.appspot.com").child("test.jpeg");
+                    AssetManager assetManager = VideoCaptureActivity.this.getAssets();
+                    InputStream istr;
+                    Bitmap bitmap;
+                    try {
+                        //get bitmap from PNG file in assets folder
+                        istr = assetManager.open("test.jpeg");
+                        bitmap = BitmapFactory.decodeStream(istr);
+
+                        //decode to byte output stream
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+                        byte[] data = outputStream.toByteArray();
+
+
+
+
+                        //Upload to firebase
+                        UploadTask uploadTask = storageReference.putBytes(data);
+                        uploadTask.addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception exception) {
+                                exception.printStackTrace();
+                                Toast.makeText(VideoCaptureActivity.this, "Upload Failed!", Toast.LENGTH_SHORT).show();
+                            }
+                        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+
+                                Toast.makeText(VideoCaptureActivity.this, "Upload successful!", Toast.LENGTH_SHORT).show();
+
+                            }
+                        });
+                        //istr.close();
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } //else {signInAnonymously();}
+
+           //}
+           @Override
+           protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+               super.onActivityResult(requestCode, resultCode, data);
+
+               if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+                   file = data.getData();
+
+
+                       InputStream stream = getResources().openRawResource(R.raw.test);
+                       UploadTask uploadTask = storageReference.putStream(stream);
+                       //Getting the Bitmap from Gallery
+                       //bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), file);
+                       //Setting the Bitmap to ImageView
+                       //imageView.setImageBitmap(bitmap);
+                       //imageView.setImageURI(file);
+                   uploadTask.addOnFailureListener(new OnFailureListener() {
+                       @Override
+                       public void onFailure(@NonNull Exception exception) {
+                           exception.printStackTrace();
+                           //dismissProgressDialog();
+                           Toast.makeText(VideoCaptureActivity.this, "Upload Failed!", Toast.LENGTH_SHORT).show();
+                       }
+                   }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                       @Override
+                       public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                           //dismissProgressDialog();
+                           Toast.makeText(VideoCaptureActivity.this, "Upload successful!", Toast.LENGTH_SHORT).show();
+                       }
+                   });
+               }
+           }
+    private void signInAnonymously() {
+        mAuth.signInAnonymously().addOnSuccessListener(this, new  OnSuccessListener<AuthResult>() {
+            @Override
+            public void onSuccess(AuthResult authResult) {
+                // do your stuff
+            }
+        })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception exception) {
+                       // Log.e(TAG, "signInAnonymously:FAILURE", exception);
+                    }
+                });
+    }
+/*
+        //InputStream stream = getResources().openRawResource(R.raw.image);
+
+        //UploadTask uploadTask = storageReference.putStream(stream);
+
+        File file = null;
+        try {
+            file = File.createTempFile("test2", "txt");
+        } catch( IOException e ) {
+
+        }
+        UploadTask uploadTask = storageReference.putFile(Uri.fromFile(file));
+        uploadTask.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+            }
+        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+            }
+        });
+    }*/
+
+
+
 }
 
 
+/*The simplest way to upload to your storage bucket is by uploading a local file,
+such as photos and videos from the camera, using the putFile() method.
+You can also upload raw data using putBytes() or from an InputStream using putStream() .
 
+The code below downloads a local file using the getFile() method.
+You can also download to device memory using getBytes() .
+
+InputStream stream = new FileInputStream(new File("path/to/images/rivers.jpg"));
+
+uploadTask = mountainsRef.putStream(stream);
+uploadTask.addOnFailureListener(new OnFailureListener() {
+    @Override
+    public void onFailure(@NonNull Exception exception) {
+        // Handle unsuccessful uploads
+    }
+}).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+    @Override
+    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+        // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
+        Uri downloadUrl = taskSnapshot.getDownloadUrl();
+    }
+});
+
+ */
 
 
 

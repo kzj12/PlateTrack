@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "581620783452",
+    "firebase_url": "https://platetrack2.firebaseio.com",
+    "project_id": "platetrack2",
+    "storage_bucket": "platetrack2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581620783452:android:e3993046b5eeb1d9",
+        "android_client_info": {
+          "package_name": "com.example.america.platetrack2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "581620783452-h02c4qold0qqm3ttjepfu8ce5kgvfp8p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.america.platetrack2",
+            "certificate_hash": "bdbb1e8887bc5a4ed95e8cbcb94f59b1c148f0fd"
+          }
+        },
+        {
+          "client_id": "581620783452-sc0mtstrpaip5h40q99rvnejj1ad008g.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "581620783452-jfc0rl5vhuvuedse8tlp3tu2bhcpekab.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDf74Eyeefeysha8TQQ-pLh0TV6YVFisCM"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
