@@ -52,7 +52,6 @@ import android.widget.Toast;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderApi;
-import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -70,9 +69,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
-//implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener
-
-public class VideoCaptureActivity extends AppCompatActivity {
+public class VideoCaptureActivity extends AppCompatActivity implements
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener  {
 
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int REQUEST_CLOCATION_PERMISSION_RESULT = 20;
@@ -88,11 +86,15 @@ public class VideoCaptureActivity extends AppCompatActivity {
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
-    private FusedLocationProviderApi locationProviderApi = LocationServices.FusedLocationApi;
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private Double mLatitude;
     private Double mLongitude;
+
+    /**
+     *  To track whether location updates are currently turned on
+     */
+    private boolean mRequestingLocationUpdates;
 
     /**
      * Represents a geographical location.
@@ -193,7 +195,6 @@ public class VideoCaptureActivity extends AppCompatActivity {
             mCameraOpenCloseLock.release();
             mCameraDevice = cameraDevice;
             startPreview();
-            //createCameraPreviewSession();
         }
 
         @Override
@@ -208,10 +209,6 @@ public class VideoCaptureActivity extends AppCompatActivity {
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             mCameraDevice = null;
-//            Activity activity = MainActivity.this;
-//            if (null != activity) {
-//                activity.finish();
-//            }
         }
 
     };
@@ -402,7 +399,7 @@ public class VideoCaptureActivity extends AppCompatActivity {
     }
 
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_video_capture);
 
         mTextureView = (AutoFitTextureView) findViewById(R.id.textureView);
@@ -410,29 +407,30 @@ public class VideoCaptureActivity extends AppCompatActivity {
         //mPictInfoBtn = (ImageButton) findViewById(R.id.pictureInfo);
 
         // Create an instance of GoogleAPIClient.
-//        if (mGoogleApiClient == null) {
-//            mGoogleApiClient = new GoogleApiClient.Builder(this)
-//                    .addConnectionCallbacks(this)
-//                    .addOnConnectionFailedListener(this)
-//                    .addApi(LocationServices.API)
-//                    .build();
-//        }
+        if (mGoogleApiClient == null) {
+            mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(LocationServices.API)
+                    .build();
+        }
 
-        //createLocationRequest();
+        createLocationRequest();
 
         mFile = new File(this.getExternalFilesDir(null), "pic.jpg");
+        super.onCreate(savedInstanceState);
     }
 
     @Override
     protected void onStart() {
+        mGoogleApiClient.connect();
         super.onStart();
-        //mGoogleApiClient.connect();
     }
 
     @Override
     protected void onStop() {
+        mGoogleApiClient.disconnect();
         super.onStop();
-        //mGoogleApiClient.disconnect();
     }
 
     @Override
@@ -440,7 +438,13 @@ public class VideoCaptureActivity extends AppCompatActivity {
         super.onPause();
         closeCamera();
         stopBackgroundThread();
-        //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        stopLocationUpdates();
+
+    }
+
+    protected void stopLocationUpdates() {
+        LocationServices.FusedLocationApi.removeLocationUpdates(
+                mGoogleApiClient, this);
     }
 
     @Override
@@ -455,9 +459,9 @@ public class VideoCaptureActivity extends AppCompatActivity {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
 
-//        if(mGoogleApiClient.isConnected()){
-//            requestLocationUpdates();
-//        }
+        if (mGoogleApiClient.isConnected() ) {
+            startLocationUpdates();
+        }
     }
 
     @Override
@@ -512,7 +516,7 @@ public class VideoCaptureActivity extends AppCompatActivity {
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED){
                     // permission was granted, yay! Do the
                     // contacts-related task you need to do.
-                    //requestLocationUpdates();
+                    startLocationUpdates();
                 } else {
                     // permission denied, boo! Disable the
                     // functionality that depends on this permission.
@@ -536,6 +540,11 @@ public class VideoCaptureActivity extends AppCompatActivity {
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         }
+    }
+
+    @Override
+    public void onPointerCaptureChanged(boolean hasCapture) {
+
     }
 
     private void setupCamera(int width, int height) {
@@ -685,7 +694,6 @@ public class VideoCaptureActivity extends AppCompatActivity {
             mPreviewRequestBuilder
                     = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mPreviewRequestBuilder.addTarget(previewSurface);
-            //mPreviewRequest = mPreviewRequestBuilder.build();
 
             // Here, we create a CameraCaptureSession for camera preview.
             mCameraDevice.createCaptureSession(Arrays.asList(previewSurface, mImageReader.getSurface()),
@@ -693,8 +701,6 @@ public class VideoCaptureActivity extends AppCompatActivity {
 
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                            //Log.d(TAG, "onConfigured: startPreview");
-                            //mPreviewCaptureSession = session;
 
                             if (null == mCameraDevice) {
                                 return;
@@ -874,7 +880,6 @@ public class VideoCaptureActivity extends AppCompatActivity {
      * Initiate a still image capture.
      */
     private void takePicture() {
-        //createLocationRequest();
         lockFocus();
     }
 
@@ -981,59 +986,55 @@ public class VideoCaptureActivity extends AppCompatActivity {
 
     // Location methods
 
-//    protected void createLocationRequest() {
-//        mLocationRequest = LocationRequest.create();
-//        mLocationRequest.setInterval(5000);
-//        mLocationRequest.setFastestInterval(5000);
-//        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-//    }
-//
-//
-//    @Override
-//    public void onConnected(@Nullable Bundle bundle) {
-//        Log.d("onConnected", "I have reached onConnected");
-//        requestLocationUpdates();
-//    }
-//
-//    private void requestLocationUpdates() {
-//        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-//                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//
-//            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-//                    REQUEST_FUSED_LOCATION_API_RESULT);
-//            //    ActivityCompat#requestPermissions
-//            // here to request the missing permissions, and then overriding
-//            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//            //                                          int[] grantResults)
-//            // to handle the case where the user grants the permission. See the documentation
-//            // for ActivityCompat#requestPermissions for more details.
-//        }else {
-//            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-//        }
-//    }
-//
-//    @Override
-//    public void onConnectionSuspended(int i) {
-//
-//    }
-//
-//    @Override
-//    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-//
-//    }
-//
-//    @Override
-//    public void onLocationChanged(Location location) {
-//
-//        if(location == null){
-//            Log.d("onLocationChanged", "location is null");
-//        }else {
-//            Log.d("onLocationChanged", "location IS NOT null");
-//            mLatitude = location.getLatitude();
-//            mLongitude = location.getLongitude();
-//            Toast.makeText(this, "Latitude: " + String.valueOf(mLatitude), Toast.LENGTH_SHORT).show();
-//        }
-//    }
+    protected void createLocationRequest() {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setInterval(15000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.d("onConnected", "I have reached onConnected");
+        startLocationUpdates();
+    }
+
+    private void startLocationUpdates() {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    REQUEST_FUSED_LOCATION_API_RESULT);
+
+        }else {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+        if(location == null){
+            Log.d("onLocationChanged", "location is null");
+        }else {
+            Log.d("onLocationChanged", "location IS NOT null");
+            mLatitude = location.getLatitude();
+            mLongitude = location.getLongitude();
+            Toast.makeText(this, "Latitude: " + String.valueOf(mLatitude), Toast.LENGTH_SHORT).show();
+        }
+    }
 
 }
 
