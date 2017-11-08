@@ -1,13 +1,8 @@
 package com.example.america.platetrack2;
 
 import android.Manifest;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
-import android.app.Fragment;
+
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
@@ -26,7 +21,6 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.location.Location;
-import android.location.LocationManager;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
@@ -34,7 +28,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
-
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -42,22 +35,18 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
-import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.FusedLocationProviderApi;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 
+import java.text.SimpleDateFormat;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -88,13 +77,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
-    private Double mLatitude;
-    private Double mLongitude;
-
-    /**
-     *  To track whether location updates are currently turned on
-     */
-    private boolean mRequestingLocationUpdates;
 
     /**
      * Represents a geographical location.
@@ -270,11 +252,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     private Semaphore mCameraOpenCloseLock = new Semaphore(1);
 
     /**
-     * Whether the current camera device supports Flash or not.
-     */
-    private boolean mFlashSupported;
-
-    /**
      * Orientation of the camera sensor
      */
     private int mSensorOrientation;
@@ -417,7 +394,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
         createLocationRequest();
 
-        mFile = new File(this.getExternalFilesDir(null), "pic.jpg");
         super.onCreate(savedInstanceState);
     }
 
@@ -542,11 +518,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         }
     }
 
-    @Override
-    public void onPointerCaptureChanged(boolean hasCapture) {
-
-    }
-
     private void setupCamera(int width, int height) {
         configureTransform(width, height);
         CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -636,10 +607,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                     mTextureView.setAspectRatio(
                             mPreviewSize.getHeight(), mPreviewSize.getWidth());
                 }
-
-                // Check if the flash is supported.
-                Boolean available = cameraCharacteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
-                mFlashSupported = available == null ? false : available;
 
                 mCameraId = cameraId;
                 return;
@@ -815,7 +782,6 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     final View.OnClickListener takeThePicture = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            //Toast.makeText(getApplicationContext(), "Button1 clicked.", Toast.LENGTH_SHORT).show();
             takePicture();
         }
     };
@@ -832,11 +798,11 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         /**
          * The file we save the image into.
          */
-        private final File mFile;
+        private final File isFile;
 
         public ImageSaver(Image image, File file) {
             mImage = image;
-            mFile = file;
+            isFile = file;
         }
 
         @Override
@@ -846,7 +812,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             buffer.get(bytes);
             FileOutputStream output = null;
             try {
-                output = new FileOutputStream(mFile);
+                output = new FileOutputStream(isFile);
                 output.write(bytes);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -861,6 +827,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                 }
             }
         }
+
     }
 
     /**
@@ -880,6 +847,10 @@ public class VideoCaptureActivity extends AppCompatActivity implements
      * Initiate a still image capture.
      */
     private void takePicture() {
+        long date = System.currentTimeMillis();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss:SSSZ");
+        String dateString = sdf.format(date);
+        mFile = new File(this.getExternalFilesDir(null), dateString+".jpg");
         lockFocus();
     }
 
@@ -927,7 +898,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             }
             // This is the CaptureRequest.Builder that we use to take a picture.
             final CaptureRequest.Builder captureBuilder =
-                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
             captureBuilder.addTarget(mImageReader.getSurface());
 
             // Use the same AE and AF modes as the preview.
@@ -937,6 +908,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             // Orientation
             int rotation = getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
+            captureBuilder.set(CaptureRequest.JPEG_GPS_LOCATION, mLastLocation);
 
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -1029,10 +1001,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         if(location == null){
             Log.d("onLocationChanged", "location is null");
         }else {
+            mLastLocation = location;
             Log.d("onLocationChanged", "location IS NOT null");
-            mLatitude = location.getLatitude();
-            mLongitude = location.getLongitude();
-            Toast.makeText(this, "Latitude: " + String.valueOf(mLatitude), Toast.LENGTH_SHORT).show();
         }
     }
 
