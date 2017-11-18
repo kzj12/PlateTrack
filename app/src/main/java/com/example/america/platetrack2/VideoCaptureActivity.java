@@ -829,17 +829,15 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             mImage = image;
             isFile = file;
 
-
-            frameStorage = storageReference.child("frames/" + file.getName());
-            metadata = new StorageMetadata.Builder()
-                    .setContentType("image/jpg")
-                    .build();
-
-
         }
 
         @Override
         public void run() {
+            frameStorage = storageReference.child("frames/" + isFile.getName());
+            metadata = new StorageMetadata.Builder()
+                    .setContentType("image/jpg")
+                    .build();
+
             ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
@@ -847,7 +845,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
             //Upload to firebase
             //FirebaseUser user = mAuth.getCurrentUser();
-            UploadTask uploadTask = storageReference.putBytes(bytes, metadata);
+            UploadTask uploadTask = frameStorage.putBytes(bytes, metadata);
             uploadTask.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
@@ -863,6 +861,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
                 }
             });
+
+            mImage.close();
 
 
 //            buffer.get(bytes);
@@ -906,7 +906,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         long date = System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss:SSSZ");
         String dateString = sdf.format(date);
-        mFile = new File(this.getExternalFilesDir(null), dateString+".jpg");
+        mFile = new File(dateString+".jpg");
         lockFocus();
     }
 
@@ -954,7 +954,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             }
             // This is the CaptureRequest.Builder that we use to take a picture.
             final CaptureRequest.Builder captureBuilder =
-                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureBuilder.addTarget(mImageReader.getSurface());
 
             // Use the same AE and AF modes as the preview.
