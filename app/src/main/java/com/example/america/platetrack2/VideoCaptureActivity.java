@@ -1,11 +1,13 @@
 package com.example.america.platetrack2;
 import android.Manifest;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
@@ -264,6 +266,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
      */
     private int mSensorOrientation;
 
+
+    private int frame = 0;
     /**
      * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
      */
@@ -271,9 +275,23 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             = new CameraCaptureSession.CaptureCallback() {
 
         private void process(CaptureResult result) {
+
+
             switch (mState) {
                 case STATE_PREVIEW: {
                     // We have nothing to do when the camera preview is working normally.
+
+
+
+
+                    if (frame == 30) {
+                        savePreviewShot();
+                        frame = 0;
+                    }
+                    else {
+                        frame++;
+                    }
+
                     break;
                 }
                 case STATE_WAITING_LOCK: {
@@ -334,6 +352,47 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
     };
 
+    private void savePreviewShot() {
+
+        try {
+            if (null == mCameraDevice){
+                return;
+            }
+
+            final CaptureRequest.Builder captureBuilder =
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+
+            captureBuilder.addTarget(mImageReader.getSurface());
+
+            int rotation = this.getWindowManager().getDefaultDisplay().getRotation();
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
+            //captureBuilder.set(CaptureRequest.JPEG_GPS_LOCATION, mLastLocation);
+
+            long date = System.currentTimeMillis();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss:SSSZ");
+            String dateString = sdf.format(date);
+            mFile = new File(dateString+".jpg");
+
+            CameraCaptureSession.CaptureCallback CaptureCallback
+                    = new CameraCaptureSession.CaptureCallback() {
+
+                @Override
+                public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+
+
+                    unlockFocus();
+                }
+            };
+
+
+            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler);
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
      * is at least as large as the respective texture view size, and that is at most as large as the
@@ -387,6 +446,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
         setContentView(R.layout.activity_video_capture);
 
+        //mFile = new File(getExternalFilesDir(null), "pic.jpg");
+
         mTextureView = (AutoFitTextureView) findViewById(R.id.textureView);
         findViewById(R.id.takePicture).setOnClickListener(takeThePicture);
         //mPictInfoBtn = (ImageButton) findViewById(R.id.pictureInfo);
@@ -437,7 +498,9 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         super.onPause();
         closeCamera();
         stopBackgroundThread();
-        stopLocationUpdates();
+        if(mGoogleApiClient.isConnected()){
+            stopLocationUpdates();
+        }
 
     }
 
@@ -805,6 +868,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     final View.OnClickListener takeThePicture = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+
             takePicture();
         }
     };
@@ -919,7 +983,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CaptureRequest.CONTROL_AF_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the precapture sequence to be set
-            mState = STATE_WAITING_LOCK;
+            //mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
                     mBackgroundHandler);
         } catch (CameraAccessException e) {
@@ -954,7 +1018,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             }
             // This is the CaptureRequest.Builder that we use to take a picture.
             final CaptureRequest.Builder captureBuilder =
-                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(mImageReader.getSurface());
 
             // Use the same AE and AF modes as the preview.
