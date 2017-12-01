@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -56,6 +57,7 @@ import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.ByteArrayOutputStream;
 import java.text.SimpleDateFormat;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -75,6 +77,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     private static final int REQUEST_CLOCATION_PERMISSION_RESULT = 20;
     private static final int REQUEST_FLOCATION_PERMISSION_RESULT = 40;
     private static final int REQUEST_FUSED_LOCATION_API_RESULT = 60;
+    public static int reserveCount=0;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -121,12 +124,12 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     /**
      * Max preview width that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_WIDTH = 1920;
+    private static final int MAX_PREVIEW_WIDTH = 1280;
 
     /**
      * Max preview height that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
+    private static final int MAX_PREVIEW_HEIGHT = 720;
 
     private final TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
@@ -232,9 +235,17 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
             = new ImageReader.OnImageAvailableListener() {
 
+
+
+
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            if (reserveCount > 4) {
+                reserveCount = 0;
+            }
+
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile, reserveCount));
+            reserveCount++;
         }
 
     };
@@ -284,7 +295,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
 
 
-                    if (frame == 30) {
+                    if (frame == 12) {
                         savePreviewShot();
                         frame = 0;
                     }
@@ -416,8 +427,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         List<Size> bigEnough = new ArrayList<>();
         // Collect the supported resolutions that are smaller than the preview Surface
         List<Size> notBigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
+        int w = 720;//aspectRatio.getWidth();
+        int h = 480;//aspectRatio.getHeight();
         for (Size option : choices) {
             if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
                     option.getHeight() == option.getWidth() * h / w) {
@@ -605,6 +616,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     }
 
     private void setupCamera(int width, int height) {
+
         configureTransform(width, height);
         CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -628,7 +640,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                 // Find out if we need to swap dimension to get the preview size relative to sensor
                 // coordinate.
                 mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.JPEG, /*maxImages*/5);
 
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
@@ -872,7 +884,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
             takePicture();
         }
     };
-
+    static File[] fileList = new File[5];
+    static Image[] imageList = new Image[5];
     /**
      * Saves a JPEG {@link Image} into the specified {@link File}.
      */
@@ -883,33 +896,40 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         /**
          * The JPEG image
          */
-        private final Image mImage;
+        //private final Image mImage;
         /**
          * The file we save the image into.
          */
-        private final File isFile;
+        //private final File isFile;
+        int counter;
 
-        public ImageSaver(Image image, File file) {
-            mImage = image;
-            isFile = file;
 
+        public ImageSaver(Image image, File file, int count) {
+            imageList[count] = image;
+
+            //isFile = file;
+            counter = count;
+            fileList[count] = file;
         }
 
         @Override
         public void run() {
-            frameStorage = storageReference.child("frames/" + isFile.getName());
+            frameStorage = storageReference.child("frames/" + fileList[counter].getName());
             metadata = new StorageMetadata.Builder()
                     .setContentType("image/jpg")
                     .build();
 
-            ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
+            ByteBuffer buffer = imageList[counter].getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
 
 
             //Upload to firebase
             //FirebaseUser user = mAuth.getCurrentUser();
-            UploadTask uploadTask = frameStorage.putBytes(bytes, metadata);
+            try {
+                UploadTask uploadTask = frameStorage.putBytes(bytes, metadata);
+
+
             uploadTask.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
@@ -925,8 +945,9 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
                 }
             });
+            }catch(Exception e){}
 
-            mImage.close();
+            imageList[counter].close();
 
 
 //            buffer.get(bytes);
