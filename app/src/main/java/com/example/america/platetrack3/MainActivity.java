@@ -1,11 +1,9 @@
-package com.example.america.platetrack2;
+package com.example.america.platetrack3;
 
 import android.app.DatePickerDialog;
-import android.app.DatePickerDialog.OnDateSetListener;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -19,15 +17,8 @@ import android.widget.EditText;
 import android.widget.DatePicker;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.util.Log;
-
 import java.util.ArrayList;
-import java.util.EventListener;
 import java.util.Calendar;
-import java.text.DateFormat;
-import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.StringTokenizer;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -89,8 +80,8 @@ public class MainActivity extends AppCompatActivity {
                 //plate_number, send_string_from, send_string_to will be sent.
 
                 try {
-                    //new PlateTracker(MainActivity.this, plate_number, send_string_from, send_string_to).execute();
-                    new PlateTracker(MainActivity.this, "c4tm4n", "10/09/2017", "11/10/2017").execute();
+                    new PlateTracker(MainActivity.this, plate_number, send_string_from, send_string_to).execute();
+                    //new PlateTracker(MainActivity.this, "c4tm4n", "10/09/2017", "11/10/2017").execute();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -115,6 +106,9 @@ public class MainActivity extends AppCompatActivity {
 
         ListView listView = (ListView) findViewById(R.id.routeListView);
         listView.setAdapter(routeAdapter);
+    }
+
+    public void onClick(View view) {
     }
 
 

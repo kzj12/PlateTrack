@@ -5,10 +5,10 @@
     android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.example.america.platetrack2.VideoCaptureActivity"
+    tools:context="com.example.america.platetrack3.VideoCaptureActivity"
     >
 
-    <com.example.america.platetrack2.AutoFitTextureView
+    <com.example.america.platetrack3.AutoFitTextureView
         android:id="@+id/textureView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>

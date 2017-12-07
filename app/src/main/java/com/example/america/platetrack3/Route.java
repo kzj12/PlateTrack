@@ -1,6 +1,4 @@
-package com.example.america.platetrack2;
-
-import android.widget.ArrayAdapter;
+package com.example.america.platetrack3;
 
 import java.util.ArrayList;
 

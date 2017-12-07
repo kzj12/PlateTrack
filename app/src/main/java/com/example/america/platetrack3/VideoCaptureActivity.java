@@ -1,14 +1,11 @@
-package com.example.america.platetrack2;
+package com.example.america.platetrack3;
 import android.Manifest;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
@@ -25,6 +22,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.location.Location;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -57,10 +55,9 @@ import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
-import java.io.ByteArrayOutputStream;
+import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.nio.ByteBuffer;
@@ -69,6 +66,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.Random;
 
 public class VideoCaptureActivity extends AppCompatActivity implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener  {
@@ -78,6 +76,8 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     private static final int REQUEST_FLOCATION_PERMISSION_RESULT = 40;
     private static final int REQUEST_FUSED_LOCATION_API_RESULT = 60;
     public static int reserveCount=0;
+
+    public static File outputDir;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -94,7 +94,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     /**
      * Represents a geographical location.
      */
-    protected Location mLastLocation;
+    public Location mLastLocation;
 
     /**
      * Camera state: Showing camera preview.
@@ -244,7 +244,9 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                 reserveCount = 0;
             }
 
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile, reserveCount));
+            if (mLastLocation != null) {
+                mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile, reserveCount, mLastLocation));
+            }
             reserveCount++;
         }
 
@@ -377,7 +379,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
             int rotation = this.getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-            //captureBuilder.set(CaptureRequest.JPEG_GPS_LOCATION, mLastLocation);
+            captureBuilder.set(CaptureRequest.JPEG_GPS_LOCATION, mLastLocation);
 
             long date = System.currentTimeMillis();
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss:SSSZ");
@@ -483,6 +485,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
     @Override
     protected void onStart() {
+        outputDir = getApplicationContext().getCacheDir();
         mAuth = FirebaseAuth.getInstance();
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
@@ -492,7 +495,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
         }
         signInAnonymously();
         storage = FirebaseStorage.getInstance();
-        storageReference = storage.getReferenceFromUrl("gs://platetrack2.appspot.com");
+        storageReference = storage.getReferenceFromUrl("gs://platetrack2-c0896.appspot.com");
 
         mGoogleApiClient.connect();
         super.onStart();
@@ -886,6 +889,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
     };
     static File[] fileList = new File[5];
     static Image[] imageList = new Image[5];
+
     /**
      * Saves a JPEG {@link Image} into the specified {@link File}.
      */
@@ -893,6 +897,7 @@ public class VideoCaptureActivity extends AppCompatActivity implements
 
         private StorageMetadata metadata;
         private StorageReference frameStorage;
+        private StorageReference nameStorage;
         /**
          * The JPEG image
          */
@@ -902,21 +907,37 @@ public class VideoCaptureActivity extends AppCompatActivity implements
          */
         //private final File isFile;
         int counter;
+        static Random rand = new Random();
+        static int rN;
+        static String randomName;
 
+        Location lastLocation;
+        public static File nameFile;
 
-        public ImageSaver(Image image, File file, int count) {
+        public ImageSaver(Image image, File file, int count, Location location) {
             imageList[count] = image;
 
+            this.lastLocation = location;
             //isFile = file;
             counter = count;
             fileList[count] = file;
+            if(counter==4){
+                nameFile = buildNameFile();
+            }
+            rN = rand.nextInt(1000);
+            randomName = Integer.toString(rN);
         }
 
-        @Override
+
+            @Override
         public void run() {
+
             frameStorage = storageReference.child("frames/" + fileList[counter].getName());
+            nameStorage = storageReference.child("names/" + randomName + fileList[0].getName() + ".txt");
             metadata = new StorageMetadata.Builder()
                     .setContentType("image/jpg")
+                    .setCustomMetadata("lat", Double.toString(lastLocation.getLatitude()))
+                    .setCustomMetadata("long", Double.toString(lastLocation.getLongitude()))
                     .build();
 
             ByteBuffer buffer = imageList[counter].getPlanes()[0].getBuffer();
@@ -946,6 +967,27 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                 }
             });
             }catch(Exception e){}
+                if (counter ==4){
+                try {
+                    Uri file = Uri.fromFile(nameFile);
+                UploadTask picTask = nameStorage.putFile(file);
+
+                picTask.addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception exception) {
+                        exception.printStackTrace();
+                        Log.e("Fail","FAIL!");
+                        //Toast.makeText(VideoCaptureActivity.this, "Upload Failed!", Toast.LENGTH_SHORT).show();
+                    }
+                }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        Log.e("PASS!", "PASS!");
+                        //Toast.makeText(VideoCaptureActivity.this, "Upload successful!", Toast.LENGTH_SHORT).show();
+
+                    }
+                });
+            }catch(Exception e){}}
 
             imageList[counter].close();
 
@@ -1009,6 +1051,33 @@ public class VideoCaptureActivity extends AppCompatActivity implements
                     mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static File buildNameFile() {
+        try {
+            //File nameFile = new File("app/src/main/assets/", randomName+".txt");
+            String tempS;
+            File outputFile = File.createTempFile("tmp", ".txt", outputDir);
+            //BufferedWriter out = new BufferedWriter(new FileWriter(outputFile.getName(), true));
+            FileWriter fileWriter = new FileWriter(outputFile);
+            for(int i=0; i<5; i++){
+                tempS = fileList[i].getName();
+
+                fileWriter.append(tempS);
+                if (i<4){
+                    fileWriter.append("\r\n");
+                }
+            }
+            //outputFile = out;
+            fileWriter.flush();
+            fileWriter.close();
+            return outputFile;
+        }
+        catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+            return null;
+
         }
     }
 
